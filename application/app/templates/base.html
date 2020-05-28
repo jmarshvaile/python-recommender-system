@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        {% if title %}
+        <title>{{ title }} - jmarshvaile</title>
+        {% else %}
+        <title>jmarshvaile</title>
+        {% endif %}
+    </head>
+    <body>
+        <div>
+            jmarshvaile: 
+            <a href={{ url_for('index') }}>Home</a>
+            <a href={{ url_for('search') }}>Search</a>
+            <a href={{ url_for('login') }}>Login</a>
+        <hr>
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+            <ul>
+                {% for message in messages %}
+                <li>{{ message }}</li>
+                {% endfor %}
+            </ul>
+            {% endif %}
+        {% endwith %}
+        {% block content %}{% endblock %}
+    </body>
+</html>
