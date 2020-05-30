@@ -14,19 +14,6 @@ from app import app
 from app.data import SearchFormChoices, TagCorpus, TagVectors, Games, BagOfTags
 from app.forms import GameSelectForm, TagSelectForm
 
-# def get_fig_url(fig):
-#     # Convert plot to PNG image
-#     pngImage = io.BytesIO()
-#     FigureCanvas(fig).print_png(pngImage)
-    
-#     # Encode PNG image to base64 string
-#     pngImageB64String = "data:image/png;base64,"
-#     pngImageB64String += base64.b64encode(pngImage.getvalue()).decode('utf8')
-    
-#     return pngImageB64String
-
-
-
 game_choices = None
 tag_choices = None
 tag_vectors = None
@@ -38,6 +25,10 @@ selected_game = None
 selected_tag_id = None
 selected_tag_index = None
 selected_tag = None
+X_labeled = None
+X = None
+Y = None
+X_pca = None
 
 @app.route('/', methods=['GET', 'POST'])
 @app.route('/index', methods=['GET', 'POST'])
@@ -53,6 +44,34 @@ def index():
     global selected_tag_id
     global selected_tag_index
     global selected_tag
+    global X_labeled
+    global X
+    global Y
+    global X_pca
+    
+    def get_fig_url(fig):
+        # Convert plot to PNG image
+        pngImage = io.BytesIO()
+        FigureCanvas(fig).print_png(pngImage)
+
+        # Encode PNG image to base64 string
+        pngImageB64String = "data:image/png;base64,"
+        pngImageB64String += base64.b64encode(pngImage.getvalue()).decode('utf8')
+
+        return pngImageB64String
+
+    def get_similarity(tag_vectors):
+        X_labeled = list(zip(*tag_vectors.items()))
+        X = np.array(X_labeled[1])
+        Y = cosine_similarity(X)
+        # Creating a mask so argmax does not cause product to return itself.
+        n = len(Y)
+        Y_mask = [list([False] * n) for y in Y]
+        for i in range(n):
+            Y_mask[i][i] = True
+        Y = np.ma.MaskedArray(Y, Y_mask)
+        
+        return X_labeled, X, Y
     
     # Import data for game search and analysis.
     if game_choices is None:
@@ -66,12 +85,13 @@ def index():
     if bag_of_tags is None:
         bag_of_tags = BagOfTags()
 
-    # Create forms for user to select 
+    # Create forms for user to select a game or meta tag.
     game_select_form = GameSelectForm()
     game_select_form.game_select.choices = [('', '')] + game_choices
     tag_select_form = TagSelectForm()
     tag_select_form.tag_select.choices =  [('', '')] + [(t, t) for t in tag_choices]
     
+    # Redirect on user submission and save form data to global variable.
     if game_select_form.validate_on_submit():
         selected_game_id = game_select_form.game_select.data
         return redirect(url_for('index'))
@@ -79,12 +99,50 @@ def index():
         selected_tag_id = tag_select_form.tag_select.data
         return redirect(url_for('index'))
     
-#     if selected_game_id is None:
-#         pass
-#     if selected_game_index is None:
-#         pass
-#     if selected_game is None:
-#         pass
+    # Get important variables.
+    if None in [X_labeled, X, Y]:
+        X_labeled, X, Y = get_similarity(tag_vectors)
+    if selected_game_id is not None:
+        if selected_game_index is None:
+            selected_game_index = list(tag_vectors.keys()).index(selected_game_id)
+        if selected_game is None:
+            selected_game = [g for g in games if g['id'] == selected_game_id][0]
+        recommended_game_index = np.argmax(Y[selected_game_index])
+        recommended_game_id = X_labeled[0][recommended_game_index]
+
+        # PCA
+        if X_pca is None:
+            X_pca = np.array(list(tag_vectors.values()))
+            selected_vector_index = [i for i, id_ in enumerate(tag_vectors) if id_ == selected_game_id][0]
+            recommended_vector_index = [i for i, id_ in enumerate(tag_vectors) if id_ == recommended_game_id][0]
+            pca = decomposition.PCA(n_components=2)
+            pca.fit(X_pca)
+            X = pca.transform(X_pca)
+            x, y = X_pca.T
+            i, j = X_pca[selected_vector_index].T
+            k, m = X_pca[recommended_vector_index].T
+            z = Y[selected_vector_index]
+            q4 = z >= np.quantile(z, .75)
+        
+        # Plots
+        plots = []
+        # Plot 1: Selected and Recommended with top quartile conveyed.
+        fig, ax = plt.subplots(figsize=(10,10))
+        ax.scatter(x, y, zorder=0, facecolors='whitesmoke', edgecolors='whitesmoke', linewidth=2)
+        ax.plot([i, k], [j, m], zorder=3, c='tab:blue')
+        ax.scatter(i, j, zorder=4, s=100, marker='o', facecolors='black', edgecolors='black', linewidth=2, label='You Selected')
+        ax.scatter(k, m, zorder=5, s=100, marker='D', facecolors='white', edgecolors='tab:blue', linewidth=3, label='We Recommended')
+        ax.scatter(x[q4], y[q4], zorder=1, facecolors='none', edgecolors='lightgray', linewidth=2, label='Cosine Similarity: Top Quartile')
+        ax.legend(fontsize=20, loc='upper right')
+
+        ax.axes.xaxis.set_visible(False)
+        ax.axes.yaxis.set_visible(False)
+        plt.setp(ax.spines.values(), color='lightgray')
+        fig.tight_layout()
+        
+        plots.append(get_fig_url(fig))
+        plt.clf()
+
 #     if selected_tag_id is None:
 #         pass
 #     if selected_tag_index is None:
@@ -96,166 +154,8 @@ def index():
     flash(selected_tag_id)
     return render_template('index.html', title='Home', game_select_form=game_select_form, tag_select_form=tag_select_form)
 
-     
 
-#     flash(session.get('game_select'))
-#     flash(session.get('tag_select'))
-    
-#     if session.get('game_select') is None:
-#         game_select_form = GameSelectForm()
-#         game_select_form.game_select.choices = [('', '')] + choices
-#         if 'game_select' in request.form:
-#             game_select_form.game_select.data = request.form['game_select']
-#             session['game_select'] = request.form['game_select']
-#     else:
-#         game_select_form = GameSelectForm()
-#         game_select_form.game_select.data = session['game_select']
-#         game_select_form.game_select.choices = [('', '')] + choices
-    
-#     if session.get('tag_select') is None:
-#         tag_select_form = TagSelectForm()
-#         tag_select_form.tag_select.choices = [('', '')] + choices
-#         if 'tag_select' in request.form:
-#             tag_select_form.tag_select.data = request.form['tag_select']
-#             session['tag_select'] = request.form['tag_select']
-#     else:
-#         tag_select_form = TagSelectForm()
-#         tag_select_form.tag_select.data = session['tag_select']
-#         tag_select_form.tag_select.choices = [('', '')] + choices
-        
-#     if game_select_form.validate_on_submit():
-#         flash('game validate on submit')
-#         session['game_select'] = game_select_form.game_select.data
-#         test = game_select_form.game_select.data
-#         flash(session.get('game_select'))
-#         flash(test)
-        
-#     if tag_select_form.validate_on_submit():
-#         flash('tag validate on submit')
-#         session['tag_select'] = tag_select_form.tag_select.data
-# #         test = game_select_form.game_select.data
-#         flash(session.get('tag_select'))
-#         flash(test)
-    
-#     return render_template('index.html', title='Home', game_select_form=game_select_form, tag_select_form=tag_select_form)
 
-@app.route('/search', methods=['POST'])
-def search():
-    flash(session.get('game_select'))
-    
-    if session.get('game_select') is None:
-        game_select_form = GameSelectForm()
-        game_select_form.game_select.choices = [('', '')] + choices
-        if 'game_select' in request.form:
-            game_select_form.game_select.data = request.form['game_select']
-            session['game_select'] = request.form['game_select']
-    else:
-        game_select_form = GameSelectForm()
-        game_select_form.game_select.data = session['game_select']
-        game_select_form.game_select.choices = [('', '')] + choices
-    
-    if session.get('tag_select') is None:
-        tag_select_form = TagSelectForm()
-        tag_select_form.tag_select.choices = [('', '')] + choices
-        if 'tag_select' in request.form:
-            tag_select_form.tag_select.data = request.form['tag_select']
-            session['tag_select'] = request.form['tag_select']
-    else:
-        tag_select_form = TagSelectForm()
-        tag_select_form.tag_select.data = session['tag_select']
-        tag_select_form.tag_select.choices = [('', '')] + choices
-
-    return render_template('index.html', title='Home', game_select_form=game_select_form, tag_select_form=tag_select_form)
-
-@app.route('/tags', methods=['POST'])
-def tags():
-    flash(session.get('game_select'))
-    
-    if session.get('game_select') is None:
-        game_select_form = GameSelectForm()
-        game_select_form.game_select.choices = [('', '')] + choices
-        if 'game_select' in request.form:
-            game_select_form.game_select.data = request.form['game_select']
-            session['game_select'] = request.form['game_select']
-    else:
-        game_select_form = GameSelectForm()
-        game_select_form.game_select.data = session['game_select']
-        game_select_form.game_select.choices = [('', '')] + choices
-    
-    if session.get('tag_select') is None:
-        tag_select_form = TagSelectForm()
-        tag_select_form.tag_select.choices = [('', '')] + choices
-        if 'tag_select' in request.form:
-            tag_select_form.tag_select.data = request.form['tag_select']
-            session['tag_select'] = request.form['tag_select']
-    else:
-        tag_select_form = TagSelectForm()
-        tag_select_form.tag_select.data = session['tag_select']
-        tag_select_form.tag_select.choices = [('', '')] + choices
-        
-#     flash([item for item in request.form])
-#     flash([item for item in request.form.values()])
-#     flash('game_select in requests: '+str('game_select' in request.form.keys()))
-#     flash('tag_select in requests: '+str('tag_select' in request.form.keys()))
-    
-#     game_select_form = None
-#     tag_select_form = None
-#     result = None
-    
-#     flash(1.1)
-#     if 'game_select' in request.form.keys():
-#         flash(1.2)
-#         flash(request.form['game_select'])
-#         game_select_form = GameSelectForm()
-#         game_select_form.game_select.data = request.form['game_select']
-#         game_select_form.game_select.choices = [('', '')] + choices
-#         if game_select_form.validate_on_submit():
-#             flash(1.3)
-#             result = redirect(url_for('index'))
-#     elif 'tag_select' in request.form.keys():
-#         flash(1.4)
-#         tag_select_form = TagSelectForm()
-#         tag_select_form.tag_select.data = request.form['tag_select']
-#         tag_select_form.tag_select.choices = [('', '')] + choices
-#         if tag_select_form.validate_on_submit():
-#             flash(1.5)
-#             result = redirect(url_for('index'))
-#     flash(1.6)
-#     if result is not None:
-#         flash(1.7)
-#         return result
-#     flash(1.8)
-#     if game_select_form is None:
-#         flash(1.9)
-#         game_select_form = GameSelectForm()
-#         game_select_form.game_select.data = None
-#         game_select_form.game_select.choices = [('', '')] + choices
-#     if tag_select_form is None:
-#         flash(1.91)
-#         tag_select_form = TagSelectForm()
-#         tag_select_form.tag_select.data = None
-#         tag_select_form.tag_select.choices = [('', '')] + choices
-    
-#     flash(1.92)
-    return render_template('index.html', title='Home', game_select_form=game_select_form, tag_select_form=tag_select_form)
-
-# @app.route('/search_t', methods=['GET', 'POST'])
-# def search():
-#     filepath = 'static/select_form_values.json'
-#     with open(filepath, 'r') as file:
-#         choices = json.load(file)
-        
-#     form = SelectForm()
-#     form.select.choices = [('', '')] + choices
-#     form.submit.label.text = 'Find Similar'
-    
-#     form2 = SelectForm()
-#     form2.select.choices = [('', '')] + choices
-#     form2.submit.label.text = 'Show Tag'
-    
-# #     if form.validate_on_submit():
-# #         return render_template('search_t.html', form=form, form2=form2)
-#     return render_template('search_t.html', form=form, form2=form2)
 
 # def find_similar():
 #     #     Find Best Fit: Cosine Similarity
