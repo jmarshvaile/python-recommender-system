@@ -1,9 +1,17 @@
 {% extends "base.html" %}
 
 {% block content %}
-    {% if user %}
-        <h1>Hello, {{ user.username }}!</h1>
-    {% else %}
-        <h1>Hello, World!</h1>
-    {% endif %}
+
+<h1>game_select_form</h1>
+<form action="{{ url_for('search') }}" method="post" novalidate>
+    {{ game_select_form.game_select }}
+    {{ game_select_form.game_submit() }}
+</form>
+
+<h1>tag_select_form</h1>
+<form action="{{ url_for('tags') }}" method="post" novalidate>
+    {{ tag_select_form.tag_select }}
+    {{ tag_select_form.tag_submit() }}
+</form>
+
 {% endblock %}
