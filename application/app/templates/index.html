@@ -1,19 +1,43 @@
 {% extends "base.html" %}
 
 {% block content %}
-
-<h1>game_select_form</h1>
 <form action="" method="post" novalidate>
     {{ game_select_form.hidden_tag() }}
     {{ game_select_form.game_select }}
     {{ game_select_form.game_submit() }}
 </form>
-
-<h1>tag_select_form</h1>
-<form action="" method="post" novalidate>
-    {{ tag_select_form.hidden_tag() }}
-    {{ tag_select_form.tag_select }}
-    {{ tag_select_form.tag_submit() }}
-</form>
-
+{% if game_select_form.validate_on_submit() or tag_select_form.validate_on_submit() %}
+    <h1>Your Selection</h1>
+    <p>
+        <table>
+            {% for key, value in selected_game.items() %}
+            <tr>
+                <td>{{ key|e }}</td>
+                <td>{{ value|e }}</td>
+            </tr>
+            {% endfor %}
+        </table>
+    </p>
+    <h1>Our Recommendation</h1>
+    <p>
+        <table>
+            {% for key, value in recommended_game.items() %}
+            <tr>
+                <td>{{ key|e }}</td>
+                <td>{{ value|e }}</td>
+            </tr>
+            {% endfor %}
+        </table>
+    </p>
+    <h1>Analysis</h1>
+    <form action="" method="post" novalidate>
+        {{ tag_select_form.hidden_tag() }}
+        {{ tag_select_form.tag_select }} 
+        {{ tag_select_form.tag_submit() }}
+    </form>
+    <p><img src={{ plots[0] }} alt="Chart" height="auto" width="625px"></p>
+    {% if tag_select_form.validate_on_submit() %}
+    <p><img src={{ plots[1] }} alt="Chart" height="auto" width="625px"></p>
+    {% endif %}
+{% endif %}
 {% endblock %}
