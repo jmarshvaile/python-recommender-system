@@ -3,15 +3,21 @@
 {% block content %}
 
 <h1>game_select_form</h1>
-<form action="{{ url_for('search') }}" method="post" novalidate>
+<form action="" method="post" novalidate>
+    {{ game_select_form.hidden_tag() }}
     {{ game_select_form.game_select }}
     {{ game_select_form.game_submit() }}
 </form>
 
 <h1>tag_select_form</h1>
-<form action="{{ url_for('tags') }}" method="post" novalidate>
+<form action="" method="post" novalidate>
+    {{ tag_select_form.hidden_tag() }}
     {{ tag_select_form.tag_select }}
     {{ tag_select_form.tag_submit() }}
 </form>
 
 {% endblock %}
+
+<!-- {{ url_for('search') }}
+
+{{ url_for('tags') }} -->

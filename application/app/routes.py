@@ -4,14 +4,14 @@ import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
 from sklearn import decomposition
 from matplotlib import pyplot as plt
-from flask import render_template, flash, redirect, url_for, request
+from flask import render_template, flash, redirect, url_for, request, session
 import io
 import base64
 from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 from collections import defaultdict
 
 from app import app
-from app.data import SearchFormChoices
+from app.data import SearchFormChoices, TagCorpus, TagVectors, Games, BagOfTags
 from app.forms import GameSelectForm, TagSelectForm
 
 # def get_fig_url(fig):
@@ -27,67 +27,216 @@ from app.forms import GameSelectForm, TagSelectForm
 
 
 
-choices = SearchFormChoices()
+game_choices = None
+tag_choices = None
+tag_vectors = None
+games = None
+bag_of_tags = None
+selected_game_id = None
+selected_game_index = None
+selected_game = None
+selected_tag_id = None
+selected_tag_index = None
+selected_tag = None
+
+@app.route('/', methods=['GET', 'POST'])
+@app.route('/index', methods=['GET', 'POST'])
+def index(): 
+    global game_choices
+    global tag_choices
+    global tag_vectors
+    global games
+    global bag_of_tags
+    global selected_game_id
+    global selected_game_index
+    global selected_game
+    global selected_tag_id
+    global selected_tag_index
+    global selected_tag
     
-@app.route('/')
-@app.route('/index')
-def index():
-    choices = SearchFormChoices()
+    # Import data for game search and analysis.
+    if game_choices is None:
+        game_choices = SearchFormChoices()
+    if tag_choices is None:
+        tag_choices = TagCorpus()
+    if tag_vectors is None:
+        tag_vectors = TagVectors()
+    if games is None:
+        games = Games()
+    if bag_of_tags is None:
+        bag_of_tags = BagOfTags()
+
+    # Create forms for user to select 
+    game_select_form = GameSelectForm()
+    game_select_form.game_select.choices = [('', '')] + game_choices
+    tag_select_form = TagSelectForm()
+    tag_select_form.tag_select.choices =  [('', '')] + [(t, t) for t in tag_choices]
     
-    flash([item for item in request.form])
-    flash('game_select' in request.form.keys())
-    flash('tag_select' in request.form.keys())
+    if game_select_form.validate_on_submit():
+        selected_game_id = game_select_form.game_select.data
+        return redirect(url_for('index'))
+    if tag_select_form.validate_on_submit():
+        selected_tag_id = tag_select_form.tag_select.data
+        return redirect(url_for('index'))
     
-    if 'game_select' not in request.form.keys():
-        game_select_form = GameSelectForm()
-        game_select_form.game_select.choices = [('', '')] + choices
-        
-    if 'tag_select' not in request.form.keys()
-        tag_select_form = TagSelectForm()
-        tag_select_form.tag_select.choices = [('', '')] + choices
-    
+#     if selected_game_id is None:
+#         pass
+#     if selected_game_index is None:
+#         pass
+#     if selected_game is None:
+#         pass
+#     if selected_tag_id is None:
+#         pass
+#     if selected_tag_index is None:
+#         pass
+#     if selected_tag is None:
+#         pass
+
+    flash(selected_game_id)
+    flash(selected_tag_id)
     return render_template('index.html', title='Home', game_select_form=game_select_form, tag_select_form=tag_select_form)
+
+     
+
+#     flash(session.get('game_select'))
+#     flash(session.get('tag_select'))
+    
+#     if session.get('game_select') is None:
+#         game_select_form = GameSelectForm()
+#         game_select_form.game_select.choices = [('', '')] + choices
+#         if 'game_select' in request.form:
+#             game_select_form.game_select.data = request.form['game_select']
+#             session['game_select'] = request.form['game_select']
+#     else:
+#         game_select_form = GameSelectForm()
+#         game_select_form.game_select.data = session['game_select']
+#         game_select_form.game_select.choices = [('', '')] + choices
+    
+#     if session.get('tag_select') is None:
+#         tag_select_form = TagSelectForm()
+#         tag_select_form.tag_select.choices = [('', '')] + choices
+#         if 'tag_select' in request.form:
+#             tag_select_form.tag_select.data = request.form['tag_select']
+#             session['tag_select'] = request.form['tag_select']
+#     else:
+#         tag_select_form = TagSelectForm()
+#         tag_select_form.tag_select.data = session['tag_select']
+#         tag_select_form.tag_select.choices = [('', '')] + choices
+        
+#     if game_select_form.validate_on_submit():
+#         flash('game validate on submit')
+#         session['game_select'] = game_select_form.game_select.data
+#         test = game_select_form.game_select.data
+#         flash(session.get('game_select'))
+#         flash(test)
+        
+#     if tag_select_form.validate_on_submit():
+#         flash('tag validate on submit')
+#         session['tag_select'] = tag_select_form.tag_select.data
+# #         test = game_select_form.game_select.data
+#         flash(session.get('tag_select'))
+#         flash(test)
+    
+#     return render_template('index.html', title='Home', game_select_form=game_select_form, tag_select_form=tag_select_form)
 
 @app.route('/search', methods=['POST'])
 def search():
-    choices = SearchFormChoices()
+    flash(session.get('game_select'))
     
-    flash([item for item in request.form])
-    flash('game_select' in request.form.keys())
-    flash('tag_select' in request.form.keys())
-    
-    if 'game_select' not in request.form.keys():
+    if session.get('game_select') is None:
         game_select_form = GameSelectForm()
         game_select_form.game_select.choices = [('', '')] + choices
-        
-    if 'tag_select' not in request.form.keys()
+        if 'game_select' in request.form:
+            game_select_form.game_select.data = request.form['game_select']
+            session['game_select'] = request.form['game_select']
+    else:
+        game_select_form = GameSelectForm()
+        game_select_form.game_select.data = session['game_select']
+        game_select_form.game_select.choices = [('', '')] + choices
+    
+    if session.get('tag_select') is None:
         tag_select_form = TagSelectForm()
         tag_select_form.tag_select.choices = [('', '')] + choices
-    
-    if game_select_form.validate_on_submit():
-        return redirect(url_for('index'))
-    
+        if 'tag_select' in request.form:
+            tag_select_form.tag_select.data = request.form['tag_select']
+            session['tag_select'] = request.form['tag_select']
+    else:
+        tag_select_form = TagSelectForm()
+        tag_select_form.tag_select.data = session['tag_select']
+        tag_select_form.tag_select.choices = [('', '')] + choices
+
     return render_template('index.html', title='Home', game_select_form=game_select_form, tag_select_form=tag_select_form)
 
 @app.route('/tags', methods=['POST'])
 def tags():
-    choices = SearchFormChoices()
+    flash(session.get('game_select'))
     
-    flash([item for item in request.form])
-    flash('game_select' in request.form.keys())
-    flash('tag_select' in request.form.keys())
-    
-    if 'game_select' not in request.form.keys():
+    if session.get('game_select') is None:
         game_select_form = GameSelectForm()
         game_select_form.game_select.choices = [('', '')] + choices
-        
-    if 'tag_select' not in request.form.keys()
+        if 'game_select' in request.form:
+            game_select_form.game_select.data = request.form['game_select']
+            session['game_select'] = request.form['game_select']
+    else:
+        game_select_form = GameSelectForm()
+        game_select_form.game_select.data = session['game_select']
+        game_select_form.game_select.choices = [('', '')] + choices
+    
+    if session.get('tag_select') is None:
         tag_select_form = TagSelectForm()
         tag_select_form.tag_select.choices = [('', '')] + choices
+        if 'tag_select' in request.form:
+            tag_select_form.tag_select.data = request.form['tag_select']
+            session['tag_select'] = request.form['tag_select']
+    else:
+        tag_select_form = TagSelectForm()
+        tag_select_form.tag_select.data = session['tag_select']
+        tag_select_form.tag_select.choices = [('', '')] + choices
+        
+#     flash([item for item in request.form])
+#     flash([item for item in request.form.values()])
+#     flash('game_select in requests: '+str('game_select' in request.form.keys()))
+#     flash('tag_select in requests: '+str('tag_select' in request.form.keys()))
     
-    if tag_select_form.validate_on_submit():
-        return redirect(url_for('index'))
+#     game_select_form = None
+#     tag_select_form = None
+#     result = None
     
+#     flash(1.1)
+#     if 'game_select' in request.form.keys():
+#         flash(1.2)
+#         flash(request.form['game_select'])
+#         game_select_form = GameSelectForm()
+#         game_select_form.game_select.data = request.form['game_select']
+#         game_select_form.game_select.choices = [('', '')] + choices
+#         if game_select_form.validate_on_submit():
+#             flash(1.3)
+#             result = redirect(url_for('index'))
+#     elif 'tag_select' in request.form.keys():
+#         flash(1.4)
+#         tag_select_form = TagSelectForm()
+#         tag_select_form.tag_select.data = request.form['tag_select']
+#         tag_select_form.tag_select.choices = [('', '')] + choices
+#         if tag_select_form.validate_on_submit():
+#             flash(1.5)
+#             result = redirect(url_for('index'))
+#     flash(1.6)
+#     if result is not None:
+#         flash(1.7)
+#         return result
+#     flash(1.8)
+#     if game_select_form is None:
+#         flash(1.9)
+#         game_select_form = GameSelectForm()
+#         game_select_form.game_select.data = None
+#         game_select_form.game_select.choices = [('', '')] + choices
+#     if tag_select_form is None:
+#         flash(1.91)
+#         tag_select_form = TagSelectForm()
+#         tag_select_form.tag_select.data = None
+#         tag_select_form.tag_select.choices = [('', '')] + choices
+    
+#     flash(1.92)
     return render_template('index.html', title='Home', game_select_form=game_select_form, tag_select_form=tag_select_form)
 
 # @app.route('/search_t', methods=['GET', 'POST'])
