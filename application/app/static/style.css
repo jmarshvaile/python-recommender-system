@@ -1,0 +1,9 @@
+.fill-width.dropdown {
+    position: static;
+}
+.fill-width.dropdown > .dropdown-menu {
+    left: auto;
+}
+.fill-width.dropdown > .dropdown-menu > li > a {
+   white-space: normal; 
+}

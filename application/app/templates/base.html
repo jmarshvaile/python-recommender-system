@@ -1,16 +1,25 @@
 <!DOCTYPE html>
-<html>
-    <head>
-        {% if title %}
-        <title>{{ title }} - jmarshvaile</title>
-        {% else %}
-        <title>jmarshvaile</title>
-        {% endif %}
-    </head>
+<html lang="en">
+<head>
+    {% if title %}
+    <title>{{ title }} - jmarshvaile</title>
+    {% else %}
+    <title>jmarshvaile</title>
+    {% endif %}
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.0/css/bootstrap.min.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.16.0/umd/popper.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.0/js/bootstrap.min.js"></script>
+    <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.7.0/css/all.css" 
+    integrity="sha384-lZN37f5QGtY3VHgisS14W3ExzMWZxybE1SJSEsQp9S+oqd12jhcu+A56Ebc1zFSJ" 
+    crossorigin="anonymous">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='style.css') }}">
+    <script type="text/javascript" src="{{ url_for('static', filename='script.js') }}"></script>
+</head>
     <body>
-        <div>
-            jmarshvaile: 
-            <a href={{ url_for('index') }}>Home</a>
+        jmarshvaile: <a href={{ url_for('index') }}>Home</a>
         <hr>
         {% with messages = get_flashed_messages() %}
             {% if messages %}
@@ -21,6 +30,8 @@
             </ul>
             {% endif %}
         {% endwith %}
+        <div class="container text-dark">
         {% block content %}{% endblock %}
+        </div>
     </body>
 </html>
