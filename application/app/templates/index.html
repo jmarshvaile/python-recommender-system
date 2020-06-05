@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+
+{% block content %}
+    <div class="row">
+        <div class="col">
+            <form action="" method="post" novalidate>
+                {{ game_select_form.hidden_tag() }}
+                <div class="d-flex flex-row">
+                    <div class="flex-grow-1 pr-3">{{ game_select_form.game_select(class="form-control form-control-lg") }}</div>
+                    <div>{{ game_select_form.game_submit(class="btn btn-primary btn-lg") }}</div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    {% if game_select_form.validate_on_submit() or tag_select_form.validate_on_submit() %}
+    <div class="row mt-5">
+        <div class="col-lg mb-5 mb-lg-0">
+            <h1>Selected</h1>
+            <!-- <hr> -->
+            {{ selected_game['app_name'] }} 
+            (<a href={{ selected_game['url'] }} target="_blank">store</a>, 
+                <a href={{ selected_game['reviews_url'] }} target="_blank">reviews</a>)</br>
+            Publisher: {{ selected_game['publisher'] }} ({{ selected_game['release_date'][:4] }})</br>
+            {% for g in selected_game['genres'] %}<kbd>{{ g }}</kbd> {% endfor %}
+            <span class="collapse" id="selectedTags">
+                <span>
+                    {% for tag in selected_game['tags'] + selected_game['specs'] %}
+                        {% if tag not in selected_game['genres'] %}
+                            <kbd style="white-space:nowrap;">{{ tag }}</kbd>
+                        {% endif %}
+                    {% endfor %}
+                </span>
+            </span>
+            <a class="btn py-0" data-toggle="collapse" href="#selectedTags">
+                <i class="fas fa-caret-right fa-lg" id="selectedCaret"></i>
+            </a>
+        </div>
+        <div class="col-lg">
+            <h1>Recommended</h1>
+            <!-- <hr> -->
+            {{ recommended_game['app_name'] }} 
+            (<a href={{ recommended_game['url'] }} target="_blank">store</a>, 
+                <a href={{ recommended_game['reviews_url'] }} target="_blank">reviews</a>)</br>
+            Publisher: {{ recommended_game['publisher'] }} ({{ recommended_game['release_date'][:4] }})</br>
+            {% for g in recommended_game['genres'] %}<kbd>{{ g }}</kbd> {% endfor %}
+            <span class="collapse" id="recommendedTags">
+                <span>
+                    {% for tag in recommended_game['tags'] + recommended_game['specs'] %}
+                        {% if tag not in recommended_game['genres'] %}
+                            <kbd style="white-space:nowrap;">{{ tag }}</kbd>
+                        {% endif %}
+                    {% endfor %}
+                </span>
+            </span>
+            <a class="btn py-0" data-toggle="collapse" href="#recommendedTags">
+                <i class="fas fa-caret-right fa-lg" id="recommendedCaret"></i>
+            </a>
+        </div>
+    </div>
+
+    <div class="row bg-light mt-5 pt-3">
+        <div class="col-lg">
+            <h4>Tag Similarity</h4>
+        </div>
+        <div class="col-lg">
+            <h4>Tag Matches</h4>
+            {% for tag in selected_game_tags %}
+                {% if tag in recommended_game_tags %}
+                    <kbd class="bg-warning" style="white-space:nowrap;">{{ tag }}</kbd>
+                {% else %}
+                    <kbd style="white-space:nowrap;">{{ tag }}</kbd>
+                {% endif %}
+            {% endfor %}
+        </div>
+    </div>
+    <div class="row bg-light pb-3">
+        <div class="col">
+            Example
+        </div>
+        <div class="col">
+            Example
+        </div>
+    </div>
+
+    <div class="row mt-5">
+        <div class="col">
+            <h1>Analysis</h1>
+            <hr>
+            <form action="" method="post" novalidate>
+                {{ tag_select_form.hidden_tag() }}
+                {{ tag_select_form.tag_select }} 
+                {{ tag_select_form.tag_submit() }}
+            </form>
+            <img class="img-fluid" src={{ plots[0] }} alt="Chart">
+            {% if tag_select_form.validate_on_submit() %}
+            <img class="img-fluid" src={{ plots[1] }} alt="Chart">
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+{% endblock %}
